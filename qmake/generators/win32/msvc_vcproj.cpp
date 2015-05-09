@@ -421,6 +421,24 @@ bool VcprojGenerator::isStandardSuffix(const QString &suffix) const
     return false;
 }
 
+ProString VcprojGenerator::firstInputFileName(const ProString &extraCompilerName) const
+{
+    foreach (const ProString &var, project->values(ProKey(extraCompilerName + ".input"))) {
+        const ProStringList &files = project->values(var.toKey());
+        if (!files.isEmpty())
+            return files.first();
+    }
+    return ProString();
+}
+
+QString VcprojGenerator::firstExpandedOutputFileName(const ProString &extraCompilerName)
+{
+    const ProString firstOutput = project->first(ProKey(extraCompilerName + ".output"));
+    return replaceExtraCompilerVariables(firstOutput.toQString(),
+                                         firstInputFileName(extraCompilerName).toQString(),
+                                         QString(), NoShell);
+}
+
 ProStringList VcprojGenerator::collectDependencies(QMakeProject *proj, QHash<QString, QString> &projLookup,
                                                    QHash<QString, QString> &projGuids,
                                                    QHash<VcsolutionDepend *, QStringList> &extraSubdirs,
@@ -787,14 +805,18 @@ void VcprojGenerator::init()
 
     processVars();
 
-    if(!project->values("VERSION").isEmpty()) {
-        QString version = project->values("VERSION")[0].toQString();
-        int firstDot = version.indexOf(".");
-        QString major = version.left(firstDot);
-        QString minor = version.right(version.length() - firstDot - 1);
-        minor.replace(QRegExp("\\."), "");
-        project->values("QMAKE_LFLAGS").append("/VERSION:" + major + "." + minor);
+    // set /VERSION for EXE/DLL header
+    ProString major_minor = project->first("VERSION_PE_HEADER");
+    if (major_minor.isEmpty()) {
+        ProString version = project->first("VERSION");
+        if (!version.isEmpty()) {
+            int firstDot = version.indexOf(".");
+            int secondDot = version.indexOf(".", firstDot + 1);
+            major_minor = version.left(secondDot);
+        }
     }
+    if (!major_minor.isEmpty())
+        project->values("QMAKE_LFLAGS").append("/VERSION:" + major_minor);
 
     MakefileGenerator::init();
 
@@ -1267,31 +1289,43 @@ void VcprojGenerator::initDeploymentTool()
         if (targetPath.endsWith("/") || targetPath.endsWith("\\"))
             targetPath.chop(1);
     }
-
+    ProStringList dllPaths = project->values("QMAKE_DLL_PATHS");
     // Only deploy Qt libs for shared build
-    if (!project->values("QMAKE_QT_DLL").isEmpty()) {
+    if (!dllPaths.isEmpty()) {
         // FIXME: This code should actually resolve the libraries from all Qt modules.
-        const QString &qtdir = project->propertyValue(ProKey("QT_INSTALL_LIBS/get")).toQString();
         ProStringList arg = project->values("QMAKE_LIBS") + project->values("QMAKE_LIBS_PRIVATE");
         for (ProStringList::ConstIterator it = arg.constBegin(); it != arg.constEnd(); ++it) {
-            if (it->contains(qtdir)) {
-                QString dllName = (*it).toQString();
+            QString dllName = (*it).toQString();
+            dllName.replace(QLatin1Char('\\'), QLatin1Char('/'));
+            // LIBPATH isn't relevant for deployment
+            if (dllName.startsWith(QLatin1String("/LIBPATH:")))
+                continue;
+            // We want to deploy .dlls not .libs
+            if (dllName.endsWith(QLatin1String(".lib")))
+                dllName.replace(dllName.length() - 3, 3, QLatin1String("dll"));
+            // Use only the file name and check in Qt's install path and LIBPATHs to check for existence
+            dllName.remove(0, dllName.lastIndexOf(QLatin1Char('/')) + 1);
+            QFileInfo info;
+            foreach (const ProString &dllPath, dllPaths) {
+                QString absoluteDllFilePath = dllPath.toQString();
+                if (!absoluteDllFilePath.endsWith(QLatin1Char('/')))
+                    absoluteDllFilePath += QLatin1Char('/');
+                absoluteDllFilePath += dllName;
+                info = QFileInfo(absoluteDllFilePath);
+                if (info.exists())
+                    break;
+            }
 
-                if (dllName.contains(QLatin1String("QAxContainer"))
-                    || dllName.contains(QLatin1String("qtmain"))
-                    || dllName.contains(QLatin1String("QtUiTools")))
-                    continue;
-                dllName.replace(QLatin1String(".lib") , QLatin1String(".dll"));
-                QFileInfo info(dllName);
-                if (conf.WinRT) {
-                    QString absoluteFilePath(QDir::toNativeSeparators(info.absoluteFilePath()));
-                    vcProject.DeploymentFiles.addFile(absoluteFilePath);
-                } else {
-                    conf.deployment.AdditionalFiles += info.fileName()
-                                                    + "|" + QDir::toNativeSeparators(info.absolutePath())
-                                                    + "|" + targetPath
-                                                    + "|0;";
-                }
+            if (!info.exists())
+                continue;
+            if (conf.WinRT) {
+                QString absoluteFilePath(QDir::toNativeSeparators(info.absoluteFilePath()));
+                vcProject.DeploymentFiles.addFile(absoluteFilePath);
+            } else {
+                conf.deployment.AdditionalFiles += info.fileName()
+                        + "|" + QDir::toNativeSeparators(info.absolutePath())
+                        + "|" + targetPath
+                        + "|0;";
             }
         }
     }
@@ -1402,9 +1436,29 @@ void VcprojGenerator::initWinDeployQtTool()
     conf.windeployqt.ExcludedFromBuild = true;
     if (project->isActiveConfig("windeployqt")) {
         conf.windeployqt.Record = QStringLiteral("$(TargetName).windeployqt.$(Platform).$(Configuration)");
-        conf.windeployqt.CommandLine =
-                MakefileGenerator::shellQuote(QDir::toNativeSeparators(project->first("QMAKE_WINDEPLOYQT").toQString()))
-                + QLatin1Char(' ') + project->values("WINDEPLOYQT_OPTIONS").join(QLatin1Char(' '))
+        const QString commandLine = MakefileGenerator::shellQuote(QDir::toNativeSeparators(project->first("QMAKE_WINDEPLOYQT").toQString()))
+                + QLatin1Char(' ') + project->values("WINDEPLOYQT_OPTIONS").join(QLatin1Char(' '));
+
+        //  Visual Studio copies all files to be deployed into the MSIL directory
+        //  and then invokes MDILXapCompile on it, which checks for managed code and
+        //  translates it into native code. The problem is that all entries of the
+        //  package will be copied into the MSIL directly, losing the subdirectory
+        //  structure (for instance for plugins). However, the MDILXapCompile call
+        //  itself contains the original subdirectories as parameters and hence the
+        //  call fails.
+        //  Neither there is a way to disable this behavior for Windows Phone, nor
+        //  to influence the parameters. Hence the only way to get a release build
+        //  done is to recreate the directory structure manually by invoking
+        //  windeployqt a second time, so that the MDILXapCompile call succeeds and
+        //  deployment continues.
+        if (conf.WinPhone && conf.Name == QStringLiteral("Release|ARM")) {
+            conf.windeployqt.CommandLine = commandLine
+                    + QStringLiteral(" -list relative -dir \"$(MSBuildProjectDirectory)\\")
+                    + var("OBJECTS_DIR")
+                    + QStringLiteral("MSIL\" \"$(OutDir)\\$(TargetName).exe\" ")
+                    + QLatin1String(" && ");
+        }
+        conf.windeployqt.CommandLine += commandLine
                 + QStringLiteral(" -list relative -dir \"$(MSBuildProjectDirectory)\" \"$(OutDir)\\$(TargetName).exe\" > ")
                 + MakefileGenerator::shellQuote(conf.windeployqt.Record);
         conf.windeployqt.config = &vcProject.Configuration;
@@ -1552,7 +1606,7 @@ void VcprojGenerator::initResourceFiles()
                         QT_PCLOSE(proc);
                         if(!indeps.isEmpty())
                             deps += fileFixify(indeps.replace('\n', ' ').simplified().split(' '),
-                                               QString(), Option::output_dir);
+                                               FileFixifyFromOutdir);
                     }
                 }
             }
@@ -1606,10 +1660,9 @@ void VcprojGenerator::initExtraCompilerOutputs()
         extraCompile.Filter = "";
         extraCompile.Guid = QString(_GUIDExtraCompilerFiles) + "-" + (*it);
 
-
         // If the extra compiler has a variable_out set the output file
         // is added to an other file list, and does not need its own..
-        bool addOnInput = hasBuiltinCompiler(project->first(ProKey(*it + ".output")).toQString());
+        bool addOnInput = hasBuiltinCompiler(firstExpandedOutputFileName(*it));
         const ProString &tmp_other_out = project->first(ProKey(*it + ".variable_out"));
         if (!tmp_other_out.isEmpty() && !addOnInput)
             continue;

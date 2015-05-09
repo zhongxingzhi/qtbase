@@ -138,6 +138,8 @@ public:
     void getAxes(QVector3D *xAxis, QVector3D *yAxis, QVector3D *zAxis) const;
     static QQuaternion fromAxes(const QVector3D &xAxis, const QVector3D &yAxis, const QVector3D &zAxis);
 
+    static QQuaternion fromDirection(const QVector3D &direction, const QVector3D &up);
+
     static QQuaternion rotationTo(const QVector3D &from, const QVector3D &to);
 #endif
 
@@ -264,7 +266,7 @@ inline bool operator==(const QQuaternion &q1, const QQuaternion &q2)
 
 inline bool operator!=(const QQuaternion &q1, const QQuaternion &q2)
 {
-    return q1.xp != q2.xp || q1.yp != q2.yp || q1.zp != q2.zp || q1.wp != q2.wp;
+    return !operator==(q1, q2);
 }
 
 inline const QQuaternion operator+(const QQuaternion &q1, const QQuaternion &q2)

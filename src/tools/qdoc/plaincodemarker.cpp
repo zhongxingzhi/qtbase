@@ -58,7 +58,7 @@ bool PlainCodeMarker::recognizeLanguage( const QString& /* lang */ )
     return false;
 }
 
-Atom::Type PlainCodeMarker::atomType() const
+Atom::AtomType PlainCodeMarker::atomType() const
 {
     return Atom::Code;
 }
@@ -109,7 +109,7 @@ QString PlainCodeMarker::functionEndRegExp( const QString& /* funcName */ )
     return QString();
 }
 
-QList<Section> PlainCodeMarker::sections(const InnerNode * /* innerNode */,
+QList<Section> PlainCodeMarker::sections(const Aggregate * /* innerNode */,
                                          SynopsisStyle /* style */,
                                          Status /* status */)
 {

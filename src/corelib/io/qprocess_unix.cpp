@@ -93,7 +93,6 @@ QT_END_NAMESPACE
 #include <qfile.h>
 #include <qfileinfo.h>
 #include <qlist.h>
-#include <qhash.h>
 #include <qmutex.h>
 #include <qsemaphore.h>
 #include <qsocketnotifier.h>
@@ -299,18 +298,6 @@ static char **_q_dupEnvironment(const QProcessEnvironmentPrivate::Hash &environm
     if (environment.isEmpty())
         return 0;
 
-    // if LD_LIBRARY_PATH exists in the current environment, but
-    // not in the environment list passed by the programmer, then
-    // copy it over.
-#if defined(Q_OS_MAC)
-    static const char libraryPath[] = "DYLD_LIBRARY_PATH";
-#else
-    static const char libraryPath[] = "LD_LIBRARY_PATH";
-#endif
-    const QByteArray envLibraryPath = qgetenv(libraryPath);
-    bool needToAddLibraryPath = !envLibraryPath.isEmpty() &&
-                                !environment.contains(QProcessEnvironmentPrivate::Key(QByteArray(libraryPath)));
-
     char **envp = new char *[environment.count() + 2];
     envp[environment.count()] = 0;
     envp[environment.count() + 1] = 0;
@@ -327,9 +314,6 @@ static char **_q_dupEnvironment(const QProcessEnvironmentPrivate::Hash &environm
         envp[(*envc)++] = ::strdup(key.constData());
     }
 
-    if (needToAddLibraryPath)
-        envp[(*envc)++] = ::strdup(QByteArray(QByteArray(libraryPath) + '=' +
-                                 envLibraryPath).constData());
     return envp;
 }
 
@@ -421,7 +405,7 @@ void QProcessPrivate::startProcess()
     char **path = 0;
     int pathc = 0;
     if (!program.contains(QLatin1Char('/'))) {
-        const QString pathEnv = QString::fromLocal8Bit(::getenv("PATH"));
+        const QString pathEnv = QString::fromLocal8Bit(qgetenv("PATH"));
         if (!pathEnv.isEmpty()) {
             QStringList pathEntries = pathEnv.split(QLatin1Char(':'), QString::SkipEmptyParts);
             if (!pathEntries.isEmpty()) {
@@ -1126,10 +1110,6 @@ bool QProcessPrivate::waitForDeadChild()
     return true;
 }
 
-void QProcessPrivate::_q_notified()
-{
-}
-
 #if defined(QPROCESS_USE_SPAWN)
 bool QProcessPrivate::startDetached(const QString &program, const QStringList &arguments, const QString &workingDirectory, qint64 *pid)
 {
@@ -1207,7 +1187,7 @@ bool QProcessPrivate::startDetached(const QString &program, const QStringList &a
             argv[arguments.size() + 1] = 0;
 
             if (!program.contains(QLatin1Char('/'))) {
-                const QString path = QString::fromLocal8Bit(::getenv("PATH"));
+                const QString path = QString::fromLocal8Bit(qgetenv("PATH"));
                 if (!path.isEmpty()) {
                     QStringList pathEntries = path.split(QLatin1Char(':'));
                     for (int k = 0; k < pathEntries.size(); ++k) {

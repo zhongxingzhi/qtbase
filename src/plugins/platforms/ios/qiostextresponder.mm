@@ -170,9 +170,31 @@
     QVariantMap platformData = m_configuredImeState->value(Qt::ImPlatformData).toMap();
     Qt::InputMethodHints hints = Qt::InputMethodHints(m_configuredImeState->value(Qt::ImHints).toUInt());
 
-    self.returnKeyType = platformData.value(kImePlatformDataReturnKeyType).isValid() ?
-        UIReturnKeyType(platformData.value(kImePlatformDataReturnKeyType).toInt()) :
-        (hints & Qt::ImhMultiLine) ? UIReturnKeyDefault : UIReturnKeyDone;
+    Qt::ReturnKeyType returnKeyType = Qt::ReturnKeyType(m_configuredImeState->value(Qt::ImReturnKeyType).toUInt());
+
+    switch (returnKeyType) {
+    case Qt::ReturnKeyEnter:
+        self.returnKeyType = UIReturnKeyDefault;
+        break;
+    case Qt::ReturnKeyDone:
+        self.returnKeyType = UIReturnKeyDone;
+        break;
+    case Qt::ReturnKeyGo:
+        self.returnKeyType = UIReturnKeyGo;
+        break;
+    case Qt::ReturnKeySend:
+        self.returnKeyType = UIReturnKeySend;
+        break;
+    case Qt::ReturnKeySearch:
+        self.returnKeyType = UIReturnKeySearch;
+        break;
+    case Qt::ReturnKeyNext:
+        self.returnKeyType = UIReturnKeyNext;
+        break;
+    default:
+        self.returnKeyType = (hints & Qt::ImhMultiLine) ? UIReturnKeyDefault : UIReturnKeyDone;
+        break;
+    }
 
     self.secureTextEntry = BOOL(hints & Qt::ImhHiddenText);
     self.autocorrectionType = (hints & Qt::ImhNoPredictiveText) ?
@@ -196,7 +218,9 @@
     else if (hints & Qt::ImhFormattedNumbersOnly)
         self.keyboardType = UIKeyboardTypeDecimalPad;
     else if (hints & Qt::ImhDialableCharactersOnly)
-        self.keyboardType = UIKeyboardTypeNumberPad;
+        self.keyboardType = UIKeyboardTypePhonePad;
+    else if (hints & Qt::ImhLatinOnly)
+        self.keyboardType = UIKeyboardTypeASCIICapable;
     else
         self.keyboardType = UIKeyboardTypeDefault;
 
@@ -231,7 +255,7 @@
     }
 
     // Based on what we set up in initWithInputContext above
-    updatedProperties &= (Qt::ImHints | Qt::ImPlatformData);
+    updatedProperties &= (Qt::ImHints | Qt::ImReturnKeyType | Qt::ImPlatformData);
 
     if (!updatedProperties)
         return NO;
@@ -657,7 +681,8 @@
         [self sendEventToFocusObject:press];
         [self sendEventToFocusObject:release];
 
-        if (self.returnKeyType == UIReturnKeyDone)
+        if (self.returnKeyType == UIReturnKeyDone || self.returnKeyType == UIReturnKeyGo
+            || self.returnKeyType == UIReturnKeySend || self.returnKeyType == UIReturnKeySearch)
             [self resignFirstResponder];
 
         return;

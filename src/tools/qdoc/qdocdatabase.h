@@ -103,7 +103,7 @@ class QDocForest
         return 0;
     }
 
-    Node* findNodeByNameAndType(const QStringList& path, Node::Type type) {
+    Node* findNodeByNameAndType(const QStringList& path, Node::NodeType type) {
         foreach (Tree* t, searchOrder()) {
             Node* n = t->findNodeByNameAndType(path, type);
             if (n)
@@ -130,9 +130,9 @@ class QDocForest
         return 0;
     }
 
-    InnerNode* findRelatesNode(const QStringList& path) {
+    Aggregate* findRelatesNode(const QStringList& path) {
         foreach (Tree* t, searchOrder()) {
-            InnerNode* n = t->findRelatesNode(path);
+            Aggregate* n = t->findRelatesNode(path);
             if (n)
                 return n;
         }
@@ -260,12 +260,12 @@ class QDocDatabase
     QmlTypeNode* findQmlType(const ImportRec& import, const QString& name);
 
  private:
-    void findAllClasses(InnerNode *node);
-    void findAllFunctions(InnerNode *node);
-    void findAllLegaleseTexts(InnerNode *node);
-    void findAllNamespaces(InnerNode *node);
-    void findAllObsoleteThings(InnerNode* node);
-    void findAllSince(InnerNode *node);
+    void findAllClasses(Aggregate *node);
+    void findAllFunctions(Aggregate *node);
+    void findAllLegaleseTexts(Aggregate *node);
+    void findAllNamespaces(Aggregate *node);
+    void findAllObsoleteThings(Aggregate* node);
+    void findAllSince(Aggregate *node);
 
  public:
     /*******************************************************************
@@ -289,7 +289,7 @@ class QDocDatabase
       Many of these will be either eliminated or replaced.
     ********************************************************************/
     void resolveInheritance() { primaryTree()->resolveInheritance(); }
-    void resolveQmlInheritance(InnerNode* root);
+    void resolveQmlInheritance(Aggregate* root);
     void resolveIssues();
     void resolveStuff();
     void fixInheritance() { primaryTree()->fixInheritance(); }
@@ -297,7 +297,7 @@ class QDocDatabase
 
     void insertTarget(const QString& name,
                       const QString& title,
-                      TargetRec::Type type,
+                      TargetRec::TargetType type,
                       Node* node,
                       int priority) {
         primaryTree()->insertTarget(name, title, type, node, priority);
@@ -310,7 +310,7 @@ class QDocDatabase
         return primaryTree()->findFunctionNode(parentPath, clone);
     }
     FunctionNode* findNodeInOpenNamespace(const QStringList& parentPath, const FunctionNode* clone);
-    Node* findNodeInOpenNamespace(QStringList& path, Node::Type type);
+    Node* findNodeInOpenNamespace(QStringList& path, Node::NodeType type);
     const Node* checkForCollision(const QString& name) {
         return primaryTree()->checkForCollision(name);
     }
@@ -327,7 +327,7 @@ class QDocDatabase
     ********************************************************************/
     ClassNode* findClassNode(const QStringList& path) { return forest_.findClassNode(path); }
     Node* findNodeForInclude(const QStringList& path) { return forest_.findNodeForInclude(path); }
-    InnerNode* findRelatesNode(const QStringList& path) { return forest_.findRelatesNode(path); }
+    Aggregate* findRelatesNode(const QStringList& path) { return forest_.findRelatesNode(path); }
     const Node* findFunctionNode(const QString& target, const Node* relative, Node::Genus genus) {
         return forest_.findFunctionNode(target, relative, genus);
     }
@@ -336,7 +336,7 @@ class QDocDatabase
     const DocumentNode* findDocumentNodeByTitle(const QString& title) {
         return forest_.findDocumentNodeByTitle(title);
     }
-    Node* findNodeByNameAndType(const QStringList& path, Node::Type type) {
+    Node* findNodeByNameAndType(const QStringList& path, Node::NodeType type) {
         return forest_.findNodeByNameAndType(path, type);
     }
 
@@ -414,7 +414,7 @@ class QDocDatabase
                          Node::Genus genus) {
         return forest_.findNode(path, relative, findFlags, genus);
     }
-    void processForest(void (QDocDatabase::*) (InnerNode*));
+    void processForest(void (QDocDatabase::*) (Aggregate*));
     bool isLoaded(const QString& t) { return forest_.isLoaded(t); }
     static void initializeDB();
 

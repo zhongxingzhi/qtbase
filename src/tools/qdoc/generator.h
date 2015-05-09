@@ -103,9 +103,10 @@ public:
     static bool useOutputSubdirs() { return useOutputSubdirs_; }
     static void setQmlTypeContext(QmlTypeNode* t) { qmlTypeContext_ = t; }
     static QmlTypeNode* qmlTypeContext() { return qmlTypeContext_; }
+    static QString cleanRef(const QString& ref);
 
 protected:
-    virtual void beginSubPage(const InnerNode* node, const QString& fileName);
+    virtual void beginSubPage(const Aggregate* node, const QString& fileName);
     virtual void endSubPage();
     virtual QString fileBase(const Node* node) const;
     virtual QString fileExtension() const = 0;
@@ -113,15 +114,15 @@ protected:
     virtual void generateAlsoList(const Node *node, CodeMarker *marker);
     virtual int generateAtom(const Atom *atom, const Node *relative, CodeMarker *marker);
     virtual void generateBody(const Node *node, CodeMarker *marker);
-    virtual void generateClassLikeNode(InnerNode* inner, CodeMarker* marker);
+    virtual void generateClassLikeNode(Aggregate* inner, CodeMarker* marker);
     virtual void generateQmlTypePage(QmlTypeNode* , CodeMarker* ) { }
     virtual void generateQmlBasicTypePage(QmlBasicTypeNode* , CodeMarker* ) { }
     virtual void generateDocumentNode(DocumentNode* dn, CodeMarker* marker);
     virtual void generateCollectionNode(CollectionNode* cn, CodeMarker* marker);
     virtual void generateInheritedBy(const ClassNode *classe, CodeMarker *marker);
     virtual void generateInherits(const ClassNode *classe, CodeMarker *marker);
-    virtual void generateInnerNode(InnerNode* node);
-    virtual void generateMaintainerList(const InnerNode* node, CodeMarker* marker);
+    virtual void generateAggregate(Aggregate* node);
+    virtual void generateMaintainerList(const Aggregate* node, CodeMarker* marker);
     virtual void generateQmlInheritedBy(const QmlTypeNode* qcn, CodeMarker* marker);
     virtual void generateQmlInherits(QmlTypeNode* qcn, CodeMarker* marker);
     virtual bool generateQmlText(const Text& text,
@@ -130,10 +131,10 @@ protected:
                                  const QString& qmlName);
     virtual bool generateText(const Text& text, const Node *relative, CodeMarker *marker);
     virtual QString imageFileName(const Node *relative, const QString& fileBase);
-    virtual int skipAtoms(const Atom *atom, Atom::Type type) const;
+    virtual int skipAtoms(const Atom *atom, Atom::AtomType type) const;
     virtual QString typeString(const Node *node);
 
-    static bool matchAhead(const Atom *atom, Atom::Type expectedAtomType);
+    static bool matchAhead(const Atom *atom, Atom::AtomType expectedAtomType);
     static QString outputPrefix(const QString &nodeType);
     static void singularPlural(Text& text, const NodeList& nodes);
     static void supplementAlsoList(const Node *node, QList<Text> &alsoList);
@@ -152,13 +153,14 @@ protected:
     void generateExampleFiles(const DocumentNode *dn, CodeMarker *marker);
     void generateFileList(const DocumentNode* dn,
                           CodeMarker* marker,
-                          Node::SubType subtype,
+                          Node::DocSubtype subtype,
                           const QString& tag);
     void generateSince(const Node *node, CodeMarker *marker);
     void generateStatus(const Node *node, CodeMarker *marker);
+    void generatePrivateSignalNote(const Node* node, CodeMarker* marker);
     void generateThreadSafeness(const Node *node, CodeMarker *marker);
-    QString getMetadataElement(const InnerNode* inner, const QString& t);
-    QStringList getMetadataElements(const InnerNode* inner, const QString& t);
+    QString getMetadataElement(const Aggregate* inner, const QString& t);
+    QStringList getMetadataElements(const Aggregate* inner, const QString& t);
     QString indent(int level, const QString& markedCode);
     QTextStream& out();
     QString outFileName();

@@ -492,6 +492,7 @@ public:
         AA_UseOpenGLES = 16,
         AA_UseSoftwareOpenGL = 17,
         AA_ShareOpenGLContexts = 18,
+        AA_SetPalette = 19,
 
         // Add new attributes before this line
         AA_AttributeCount
@@ -1322,6 +1323,7 @@ public:
         ImAbsolutePosition = 0x400,
         ImTextBeforeCursor = 0x800,
         ImTextAfterCursor = 0x1000,
+        ImReturnKeyType = 0x2000,
 
         ImPlatformData = 0x80000000,
         ImQueryInput = ImCursorRectangle | ImCursorPosition | ImSurroundingText |
@@ -1360,6 +1362,17 @@ public:
         ImhExclusiveInputMask = 0xffff0000
     };
     Q_DECLARE_FLAGS(InputMethodHints, InputMethodHint)
+
+    enum ReturnKeyType {
+        ReturnKeyDefault,
+        ReturnKeyEnter,
+        ReturnKeyDone,
+        ReturnKeyGo,
+        ReturnKeySend,
+        ReturnKeySearch,
+        ReturnKeyNext,
+        ReturnKeyPrevious
+    };
 
     enum ToolButtonStyle {
         ToolButtonIconOnly,
@@ -1445,7 +1458,10 @@ public:
         ItemIsDropEnabled = 8,
         ItemIsUserCheckable = 16,
         ItemIsEnabled = 32,
-        ItemIsTristate = 64,
+        ItemIsAutoTristate = 64,
+#if QT_DEPRECATED_SINCE(5, 6)
+        ItemIsTristate = ItemIsAutoTristate,
+#endif
         ItemNeverHasChildren = 128,
         ItemIsUserTristate = 256
     };
@@ -1681,6 +1697,7 @@ public:
     QT_Q_ENUM(InputMethodHint)
     QT_Q_ENUM(InputMethodQuery)
     QT_Q_FLAG(InputMethodHints)
+    QT_Q_ENUM(ReturnKeyType)
     QT_Q_FLAG(InputMethodQueries)
     QT_Q_FLAG(TouchPointStates)
     QT_Q_ENUM(ScreenOrientation)

@@ -64,7 +64,7 @@ struct Section
     QStringList keys;
     NodeList members;
     NodeList reimpMembers;
-    QList<QPair<InnerNode *, int> > inherited;
+    QList<QPair<Aggregate *, int> > inherited;
     ClassKeysNodesList classKeysNodesList_;
 
     Section() { }
@@ -83,7 +83,7 @@ struct Section
 
 struct FastSection
 {
-    const InnerNode *parent_;
+    const Aggregate *parent_;
     QString name;
     QString divClass;
     QString singularMember;
@@ -91,9 +91,9 @@ struct FastSection
     QMultiMap<QString, Node *> memberMap;
     QMultiMap<QString, Node *> reimpMemberMap;
     ClassMapList classMapList_;
-    QList<QPair<InnerNode *, int> > inherited;
+    QList<QPair<Aggregate *, int> > inherited;
 
-    FastSection(const InnerNode *parent,
+    FastSection(const Aggregate *parent,
                 const QString& name0,
                 const QString& divClass0,
                 const QString& singularMember0,
@@ -127,7 +127,7 @@ public:
     virtual bool recognizeCode(const QString& code) = 0;
     virtual bool recognizeExtension(const QString& ext) = 0;
     virtual bool recognizeLanguage(const QString& lang) = 0;
-    virtual Atom::Type atomType() const = 0;
+    virtual Atom::AtomType atomType() const = 0;
     virtual QString markedUpCode(const QString& code,
                                  const Node *relative,
                                  const Location &location) = 0;
@@ -143,7 +143,7 @@ public:
     virtual QString markedUpIncludes(const QStringList& includes) = 0;
     virtual QString functionBeginRegExp(const QString& funcName) = 0;
     virtual QString functionEndRegExp(const QString& funcName) = 0;
-    virtual QList<Section> sections(const InnerNode *inner,
+    virtual QList<Section> sections(const Aggregate *inner,
                                     SynopsisStyle style,
                                     Status status) = 0;
     virtual QList<Section> qmlSections(QmlTypeNode* qmlTypeNode,

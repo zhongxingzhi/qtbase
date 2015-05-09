@@ -172,9 +172,9 @@ void QDocIndexFiles::readIndexSection(const QDomElement& element,
     QString href = element.attribute("href");
     Node* node;
     Location location;
-    InnerNode* parent = 0;
-    if (current->isInnerNode())
-        parent = static_cast<InnerNode*>(current);
+    Aggregate* parent = 0;
+    if (current->isAggregate())
+        parent = static_cast<Aggregate*>(current);
 
     QString filePath;
     int lineNo = 0;
@@ -342,7 +342,7 @@ void QDocIndexFiles::readIndexSection(const QDomElement& element,
     else if ((element.nodeName() == "qmlmethod") ||
              (element.nodeName() == "qmlsignal") ||
              (element.nodeName() == "qmlsignalhandler")) {
-        Node::Type t = Node::QmlMethod;
+        Node::NodeType t = Node::QmlMethod;
         if (element.nodeName() == "qmlsignal")
             t = Node::QmlSignal;
         else if (element.nodeName() == "qmlsignalhandler")
@@ -354,7 +354,7 @@ void QDocIndexFiles::readIndexSection(const QDomElement& element,
     else if ((element.nodeName() == "jsmethod") ||
              (element.nodeName() == "jssignal") ||
              (element.nodeName() == "jssignalhandler")) {
-        Node::Type t = Node::QmlMethod;
+        Node::NodeType t = Node::QmlMethod;
         if (element.nodeName() == "jssignal")
             t = Node::QmlSignal;
         else if (element.nodeName() == "jssignalhandler")
@@ -405,7 +405,7 @@ void QDocIndexFiles::readIndexSection(const QDomElement& element,
         node = cn;
     }
     else if (element.nodeName() == "page") {
-        Node::SubType subtype;
+        Node::DocSubtype subtype;
         Node::PageType ptype = Node::NoPageType;
         QString attr = element.attribute("subtype");
         if (attr == "example") {
@@ -726,7 +726,7 @@ bool QDocIndexFiles::generateIndexSection(QXmlStreamWriter& writer,
     /*
       Don't include index nodes in a new index file. Or DITA map nodes.
      */
-    if (node->isIndexNode() || node->subType() == Node::DitaMap)
+    if (node->isIndexNode() || node->docSubtype() == Node::DitaMap)
         return false;
 
     QString nodeName;
@@ -937,7 +937,7 @@ bool QDocIndexFiles::generateIndexSection(QXmlStreamWriter& writer,
     else
         href = node->name();
     if (node->isQmlNode() || node->isJsNode()) {
-        InnerNode* p = node->parent();
+        Aggregate* p = node->parent();
         if (p) {
             if (p->isQmlPropertyGroup() || p->isJsPropertyGroup())
                 p = p->parent();
@@ -1019,7 +1019,7 @@ bool QDocIndexFiles::generateIndexSection(QXmlStreamWriter& writer,
             */
             bool writeModuleName = false;
             const DocumentNode* docNode = static_cast<const DocumentNode*>(node);
-            switch (docNode->subType()) {
+            switch (docNode->docSubtype()) {
             case Node::Example:
                 writer.writeAttribute("subtype", "example");
                 writeModuleName = true;
@@ -1316,7 +1316,7 @@ bool QDocIndexFiles::generateIndexSection(QXmlStreamWriter& writer,
         bool external = false;
         if (node->type() == Node::Document) {
             const DocumentNode* docNode = static_cast<const DocumentNode*>(node);
-            if (docNode->subType() == Node::ExternalPage)
+            if (docNode->docSubtype() == Node::ExternalPage)
                 external = true;
         }
         foreach (const Atom* target, node->doc().targets()) {
@@ -1349,8 +1349,8 @@ bool QDocIndexFiles::generateIndexSection(QXmlStreamWriter& writer,
     // opening tag, create child elements, then add a closing tag for the
     // element. Elements for all other nodes are closed in the opening tag.
 
-    if (node->isInnerNode()) {
-        const InnerNode* inner = static_cast<const InnerNode*>(node);
+    if (node->isAggregate()) {
+        const Aggregate* inner = static_cast<const Aggregate*>(node);
 
         if (inner->doc().hasTableOfContents()) {
             for (int i = 0; i < inner->doc().tableOfContents().size(); ++i) {
@@ -1453,8 +1453,8 @@ void QDocIndexFiles::generateIndexSections(QXmlStreamWriter& writer,
         return;
 
     if (generateIndexSection(writer, node, generateInternalNodes)) {
-        if (node->isInnerNode()) {
-            const InnerNode* inner = static_cast<const InnerNode*>(node);
+        if (node->isAggregate()) {
+            const Aggregate* inner = static_cast<const Aggregate*>(node);
 
             NodeList cnodes = inner->childNodes();
             std::sort(cnodes.begin(), cnodes.end(), compareNodes);

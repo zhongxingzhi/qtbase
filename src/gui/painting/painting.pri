@@ -44,6 +44,7 @@ HEADERS += \
         painting/qregion.h \
         painting/qrgb.h \
         painting/qrgba64.h \
+        painting/qrgba64_p.h \
         painting/qstroker_p.h \
         painting/qtextureglyphcache_p.h \
         painting/qtransform.h \
@@ -59,6 +60,7 @@ SOURCES += \
         painting/qbrush.cpp \
         painting/qcolor.cpp \
         painting/qcolor_p.cpp \
+        painting/qcompositionfunctions.cpp \
         painting/qcosmeticstroker.cpp \
         painting/qcssutil.cpp \
         painting/qdrawhelper.cpp \
@@ -94,7 +96,8 @@ SOURCES += \
 
 SSE2_SOURCES += painting/qdrawhelper_sse2.cpp
 SSSE3_SOURCES += painting/qdrawhelper_ssse3.cpp
-SSE4_1_SOURCES += painting/qdrawhelper_sse4.cpp
+SSE4_1_SOURCES += painting/qdrawhelper_sse4.cpp \
+                  painting/qimagescale_sse4.cpp
 AVX2_SOURCES += painting/qdrawhelper_avx2.cpp
 
 !ios {

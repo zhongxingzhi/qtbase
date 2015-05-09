@@ -357,12 +357,12 @@ compilerSupportsFlag()
 int main() { return 0; }
 EOF
     if [ "$OPT_VERBOSE" = "yes" ]; then
-        "$@" -o conftest-out.o conftest.cpp
+        "$@" -o conftest-out conftest.cpp
     else
-        "$@" -o conftest-out.o conftest.cpp >/dev/null 2>&1
+        "$@" -o conftest-out conftest.cpp >/dev/null 2>&1
     fi
     ret=$?
-    rm -f conftest.cpp conftest-out.o
+    rm -f conftest.cpp conftest-out
     return $ret
 }
 
@@ -376,6 +376,9 @@ linkerSupportsFlag()
 	safe_flag=`shellEscape "$flag"`
 	lflags=$lflags,$safe_flag
     done
+    if [ $CFG_USE_GOLD_LINKER = yes ]; then
+        lflags="-fuse-ld=gold $lflags"
+    fi
     compilerSupportsFlag $compiler $lflags
 }
 
@@ -561,21 +564,28 @@ fi
 # initalize variables
 #-------------------------------------------------------------------------------
 
-SYSTEM_VARIABLES="RANLIB STRIP OBJDUMP LD CC CXX CFLAGS CXXFLAGS LDFLAGS"
+SYSTEM_VARIABLES="AR RANLIB STRIP OBJDUMP LD CC CXX CFLAGS CXXFLAGS LDFLAGS"
 for varname in $SYSTEM_VARIABLES; do
     qmakevarname="${varname}"
+    qmakecmdargs=""
     # use LDFLAGS for autoconf compat, but qmake uses QMAKE_LFLAGS
     if [ "${varname}" = "LDFLAGS" ]; then
         qmakevarname="LFLAGS"
     elif [ "${varname}" = "LD" ]; then
         qmakevarname="LINK"
+    elif [ "${varname}" = "AR" ]; then
+        # QMAKE_AR needs to be set to "/path/to/ar cqs" but the
+        # environment variable will be set to the command only so we
+        # need to append " cqs" for autoconf compatibility
+        qmakecmdargs=" cqs"
     fi
     cmd=`echo \
 'if [ -n "\$'${varname}'" ]; then
-    QMakeVar set QMAKE_'${qmakevarname}' "\$'${varname}'"
+    QMakeVar set QMAKE_'${qmakevarname}' "\$'${varname}${qmakecmdargs}'"
 fi'`
     eval "$cmd"
 done
+
 # Use CC/CXX to run config.tests
 mkdir -p "$outpath/config.tests"
 rm -f "$outpath/config.tests/.qmake.cache"
@@ -755,6 +765,7 @@ QPA_PLATFORM_GUARD=yes
 CFG_CXX11=auto
 CFG_DIRECTWRITE=no
 CFG_WERROR=auto
+CFG_HEADERSCLEAN=auto
 CFG_QREAL=double
 OPT_MAC_SDK=
 COMMERCIAL_USER=ask
@@ -2229,6 +2240,13 @@ while [ "$#" -gt 0 ]; do
     warnings-are-errors|Werror)
         if [ "$VAL" = "yes" ] || [ "$VAL" = "no" ]; then
             CFG_WERROR="$VAL"
+        else
+            UNKNOWN_OPT=yes
+        fi
+        ;;
+    headersclean)
+        if [ "$VAL" = "yes" ] || [ "$VAL" = "no" ]; then
+            CFG_HEADERSCLEAN="$VAL"
         else
             UNKNOWN_OPT=yes
         fi
@@ -6705,8 +6723,16 @@ if [ "$CFG_DEV" = "yes" ]; then
     if [ "$CFG_WERROR" != "no" ]; then
         QMAKE_CONFIG="$QMAKE_CONFIG warnings_are_errors"
     fi
-elif [ "$CFG_WERROR" = "yes" ]; then
-    QMAKE_CONFIG="$QMAKE_CONFIG warnings_are_errors"
+    if [ "$CFG_HEADERSCLEAN" != "no" ]; then
+        QMAKE_CONFIG="$QMAKE_CONFIG headersclean"
+    fi
+else
+    if [ "$CFG_WERROR" = "yes" ]; then
+        QMAKE_CONFIG="$QMAKE_CONFIG warnings_are_errors"
+    fi
+    if [ "$CFG_HEADERSCLEAN" = "yes" ]; then
+        QMAKE_CONFIG="$QMAKE_CONFIG headersclean"
+    fi
 fi
 
 cat >>"$QTCONFIG.tmp" <<EOF
